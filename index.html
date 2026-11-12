@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ระบบลงทะเบียนนักศึกษา</title>
+
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            max-width: 760px;
+            margin: 30px auto;
+            padding: 0 16px;
+            background: #f5f7f6;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f883d;
+        }
+
+        input,
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 5px;
+        }
+
+        input {
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #1f883d;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #176b30;
+        }
+
+        #msg {
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+            background: white;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #eef5f1;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>ระบบลงทะเบียนนักศึกษา</h1>
+
+    <input id="first_name" type="text" placeholder="ชื่อ">
+
+    <input id="last_name" type="text" placeholder="นามสกุล">
+
+    <input id="nickname" type="text" placeholder="ชื่อเล่น">
+
+    <input id="student_id" type="text" placeholder="เลขนักศึกษา">
+
+    <input id="major" type="text" placeholder="สาขาวิชา">
+
+    <button onclick="register()">ลงทะเบียน</button>
+
+    <p id="msg"></p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>ชื่อ-นามสกุล</th>
+                    <th>ชื่อเล่น</th>
+                    <th>เลขนักศึกษา</th>
+                    <th>สาขาวิชา</th>
+                </tr>
+            </thead>
+
+            <tbody id="rows"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+
+    // =====================================
+    // ตั้งค่า Supabase
+    // =====================================
+
+    const SUPABASE_URL = https://nckjovumdattfswjzsfj.supabase.co ;
+
+    const SUPABASE_KEY = sb_publishable_bXtjRhzJ4gi-jP17k0CFsA_c3iL7JZF;
+
+    const db = supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+    // =====================================
+    // รายการช่องข้อมูล
+    // =====================================
+
+    const fields = [
+        "first_name",
+        "last_name",
+        "nickname",
+        "student_id",
+        "major"
+    ];
+
+
+    // =====================================
+    // อ่านค่าจากช่อง Input
+    // =====================================
+
+    function val(id) {
+        return document.getElementById(id).value.trim();
+    }
+
+
+    // =====================================
+    // ลงทะเบียนนักศึกษา
+    // =====================================
+
+    async function register() {
+
+        const msg = document.getElementById("msg");
+
+        const row = {
+            first_name: val("first_name"),
+            last_name: val("last_name"),
+            nickname: val("nickname"),
+            student_id: val("student_id"),
+            major: val("major")
+        };
+
+
+        // ตรวจสอบข้อมูล
+
+        if (
+            !row.first_name ||
+            !row.last_name ||
+            !row.student_id ||
+            !row.major
+        ) {
+
+            msg.textContent = "กรุณากรอกข้อมูลให้ครบ";
+
+            msg.style.color = "red";
+
+            return;
+        }
+
+
+        // ส่งข้อมูลไป Supabase
+
+        const { error } = await db
+            .from("registrations")
+            .insert([row]);
+
+
+        // ตรวจสอบ Error
+
+        if (error) {
+
+            console.error(error);
+
+            if (error.code === "23505") {
+
+                msg.textContent =
+                    "เลขนักศึกษานี้ลงทะเบียนแล้ว";
+
+            } else {
+
+                msg.textContent =
+                    "เกิดข้อผิดพลาด: " + error.message;
+
+            }
+
+            msg.style.color = "red";
+
+            return;
+        }
+
+
+        // ลงทะเบียนสำเร็จ
+
+        msg.textContent = "ลงทะเบียนสำเร็จ";
+
+        msg.style.color = "green";
+
+
+        // ล้างช่องกรอกข้อมูล
+
+        fields.forEach(function(id) {
+
+            document.getElementById(id).value = "";
+
+        });
+
+
+        // โหลดข้อมูลใหม่
+
+        loadRows();
+    }
+
+
+    // =====================================
+    // โหลดข้อมูลนักศึกษา
+    // =====================================
+
+    async function loadRows() {
+
+        const msg = document.getElementById("msg");
+
+        const {
+            data,
+            error
+        } = await db
+            .from("registrations")
+            .select("*")
+            .order("id", {
+                ascending: false
+            });
+
+
+        // ตรวจสอบ Error
+
+        if (error) {
+
+            console.error(error);
+
+            msg.textContent =
+                "อ่านข้อมูลไม่ได้: " + error.message;
+
+            msg.style.color = "red";
+
+            return;
+        }
+
+
+        // ตารางข้อมูล
+
+        const tb = document.getElementById("rows");
+
+        tb.innerHTML = "";
+
+
+        // แสดงข้อมูล
+
+        data.forEach(function(r) {
+
+            const tr = document.createElement("tr");
+
+
+            const values = [
+                r.id,
+                r.first_name + " " + r.last_name,
+                r.nickname || "-",
+                r.student_id,
+                r.major
+            ];
+
+
+            values.forEach(function(v) {
+
+                const td = document.createElement("td");
+
+                td.textContent = v;
+
+                tr.appendChild(td);
+
+            });
+
+
+            tb.appendChild(tr);
+
+        });
+
+    }
+
+
+    // =====================================
+    // โหลดข้อมูลเมื่อเปิดเว็บไซต์
+    // =====================================
+
+    loadRows();
+
+</script>
+
+</body>
+</html>
